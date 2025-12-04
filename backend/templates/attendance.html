@@ -1,0 +1,263 @@
+<!-- templates/attendance.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Attendance — JSW Evacuation</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    /* small overrides for attendance layout */
+    .left-col { width: 640px; }
+    .right-col { margin-left: 20px; flex:1; }
+    #cameraWrap { display:flex; gap:16px; }
+    #logList { max-height:420px; overflow:auto; display:flex; flex-direction:column; gap:8px; }
+    .log-item { background:#fff; padding:10px; border-radius:8px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); display:flex; justify-content:space-between; align-items:center;}
+  </style>
+</head>
+<body>
+<header class="header">
+  <div class="brand">
+    <img src="{{ url_for('static', filename='JSQ.png') }}" alt="JSW">
+    <h1>Attendance</h1>
+  </div>
+  <div class="actions">
+    <a class="btn" href="/dashboard">Dashboard</a>
+    <a class="btn" href="/evac_mode">Evac Mode</a>
+    <a class="btn" href="/logout">Logout</a>
+  </div>
+</header>
+
+<main class="attendance-layout">
+
+   <!-- left camera panel -->
+<div class="camera-panel card">
+  <h3 class="section-title">Live Camera</h3>
+
+  <!-- IMPORTANT: id="camera" must match the JS below -->
+  <video id="camera" autoplay playsinline muted style="width:100%;border-radius:10px;background:#e9eef6"></video>
+
+  <div class="button-row">
+    <button id="startBtn" class="btn-primary">Start</button>
+    <button id="stopBtn" class="btn">Stop</button>
+    <label class="small">Scan interval</label>
+    <select id="interval" class="input" style="width:120px;">
+      <option value="1500">1.5s</option>
+      <option value="1000">1s</option>
+      <option value="500">0.5s</option>
+    </select>
+  </div>
+
+  <h3 class="section-title">Summary</h3>
+  <p><b style="color:#0b4db8;">Present:</b> <span id="presentCount">0</span></p>
+  <p>Missing: <span id="missingCount">0</span></p>
+  <p>Unknown: <span id="unknownCount">0</span></p>
+
+  <h4>Live Log</h4>
+  <div id="liveLog" class="log-box"></div>
+</div>
+
+
+
+    <!-- RIGHT LOG TABLE PANEL -->
+    <div class="logs-panel card">
+        <h3 class="section-title">Recent Attendance Logs</h3>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Emp ID</th>
+                    <th>Name</th>
+                    <th>Mode</th>
+                </tr>
+            </thead>
+            <tbody id="logTable">
+                <tr><td colspan="4" class="small">No logs yet</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+</main>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const video = document.getElementById("camera");
+  const startBtn = document.getElementById("startBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const intervalSel = document.getElementById("interval");
+  const liveLog = document.getElementById("liveLog");
+  const presentCountEl = document.getElementById("presentCount");
+  const missingCountEl = document.getElementById("missingCount");
+  const unknownCountEl = document.getElementById("unknownCount");
+
+  let stream = null;
+  let scanTimer = null;
+  let scanning = false;
+let lastSeen = {};     
+const COOLDOWN = 15000;   // 15 seconds
+
+  function log(msg, err = false) {
+    console.log(msg);
+    const p = document.createElement("div");
+    p.textContent = msg;
+    p.style.padding = "10px";
+    p.style.marginBottom = "8px";
+    p.style.borderRadius = "8px";
+    p.style.background = err ? "#fff5f5" : "#fbfdff";
+    p.style.color = err ? "#c53030" : "#0b4db8";
+    liveLog.prepend(p);
+  }
+
+  async function startCamera() {
+    if (!video) {
+      alert("Cannot access camera: video element not found.");
+      return;
+    }
+
+    // if already started
+    if (stream) {
+      try { video.srcObject = stream; } catch(e) {}
+      return;
+    }
+
+    // constraints — prefer front-facing if available
+    const constraints = { video: { width: 640, height: 480, facingMode: "user" }, audio: false };
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = stream;
+      log("Camera started");
+    } catch (err) {
+      console.error("camera error:", err);
+      if (err.name === "NotAllowedError") {
+        alert("Camera permission denied. Allow camera access and reload.");
+      } else if (err.name === "NotFoundError") {
+        alert("No camera found on this device.");
+      } else {
+        alert("Cannot access camera: " + (err.message || err));
+      }
+      log("Camera start failed: " + err.message, true);
+    }
+  }
+
+  function stopCamera() {
+    if (scanTimer) {
+      clearInterval(scanTimer);
+      scanTimer = null;
+      scanning = false;
+    }
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+    if (video) video.srcObject = null;
+    log("Camera stopped");
+  }
+
+  // convert video frame to blob (jpeg)
+  function captureFrameBlob() {
+    if (!video || !video.videoWidth) {
+      return Promise.reject(new Error("video not ready"));
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.8));
+  }
+
+  async function scanOnce() {
+    try {
+      const blob = await captureFrameBlob();
+      if (!blob) throw new Error("Empty frame blob");
+
+      // send to server API - expects JSON response
+      const form = new FormData();
+      form.append("frame", blob, "frame.jpg");
+
+      const res = await fetch("/api/scan_face", {
+        method: "POST",
+        body: form,
+      });
+
+      // check for non-json HTML error
+      const text = await res.text();
+      try {
+        const data = JSON.parse(text);
+        // successful JSON response expected: { match: "JSWXXX001", confidence: 0.93 } or { match: null, confidence: 0 }
+        if (data.error) {
+          log("Server: " + data.error, true);
+          return;
+        }
+
+        if (data.match) {
+    const empid = data.match;
+    const now = Date.now();
+
+    // If seen recently → ignore
+    if (lastSeen[empid] && now - lastSeen[empid] < COOLDOWN) {
+        return; 
+    }
+
+    lastSeen[empid] = now; // Update timestamp
+
+    log(`Recognized ${empid} (conf: ${Number(data.confidence).toFixed(2)})`);
+
+    // Increase present ONCE
+    const current = Number(presentCountEl.textContent || 0) + 1;
+    presentCountEl.textContent = current;
+}
+    else {
+          log("Unknown face detected (confidence: " + (data.confidence||0) + ")", true);
+          const current = Number(unknownCountEl.textContent || 0) + 1;
+          unknownCountEl.textContent = current;
+        }
+
+      } catch (jsonErr) {
+        // backend returned HTML (error page) or invalid JSON
+        console.error("Invalid JSON from /api/scan_face:", text);
+        log("Network error: received non-JSON from server", true);
+      }
+
+    } catch (err) {
+      console.error("scanOnce error:", err);
+      log("Capture error: " + (err.message || err), true);
+    }
+  }
+
+  function startScanning() {
+    if (scanning) return;
+    const ms = Number(intervalSel.value) || 1500;
+    scanTimer = setInterval(scanOnce, ms);
+    scanning = true;
+    log("Started scanning every " + ms + "ms");
+  }
+
+  function stopScanning() {
+    if (scanTimer) clearInterval(scanTimer);
+    scanTimer = null;
+    scanning = false;
+    log("Scanning stopped");
+  }
+
+  // button handlers
+  startBtn.addEventListener("click", async () => {
+    await startCamera();
+    startScanning();
+  });
+
+  stopBtn.addEventListener("click", () => {
+    stopScanning();
+    stopCamera();
+  });
+
+  // cleanup when the page unloads
+  window.addEventListener("beforeunload", () => stopCamera());
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Employee Registration - Capture Photos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        #camera {
+            width: 100%;
+            border-radius: 10px;
+            background: #e9eef6;
+        }
+        #statusTxt {
+            font-size: 18px;
+            margin-top: 10px;
+            font-weight: bold;
+            color: #0b4db8;
+        }
+        #captureBtn {
+            margin-top: 15px;
+            padding: 10px 22px;
+            border-radius: 8px;
+            background: #0b4db8;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #captureBtn:disabled {
+            background: gray;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+
+<header class="header">
+    <div class="brand">
+        <img src="{{ url_for('static', filename='JSQ.png') }}" alt="JSW">
+        <h1>Register — Capture Photos</h1>
+    </div>
+</header>
+
+<main class="capture-container card">
+
+    <h2>Employee ID: <b>{{ empid }}</b></h2>
+
+    <video id="camera" autoplay playsinline muted></video>
+
+    <p id="statusTxt">Click <b>Start Capture</b> to begin the guided photo capture.</p>
+
+    <button id="captureBtn">Start Capture</button>
+
+</main>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const video = document.getElementById("camera");
+    const captureBtn = document.getElementById("captureBtn");
+    const statusTxt = document.getElementById("statusTxt");
+
+    const empid = "{{ empid }}";
+
+    let stream = null;
+    let step = 0;
+
+    const steps = [
+        "Look straight",
+        "Turn head slightly LEFT",
+        "Turn head slightly RIGHT",
+        "Look UP slightly",
+        "Look DOWN slightly",
+        "Smile slightly",
+        "Neutral face",
+        "Move a bit closer",
+        "Move slightly back",
+        "Final pose – Stay still"
+    ];
+
+    // START CAMERA
+    async function startCam() {
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: 640, height: 480, facingMode: "user" }
+        });
+        video.srcObject = stream;
+    }
+
+    startCam();
+
+    // CAPTURE FRAME AS BLOB
+    function captureFrame() {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        return new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.9));
+    }
+
+    // CAPTURE LOOP
+    async function captureStep() {
+
+        if (step >= steps.length) {
+            statusTxt.innerText = "Processing… Creating embedding…";
+
+            // Call backend for embedding creation
+            const fd = new FormData();
+            fd.append("empid", empid);
+
+            const res = await fetch("/api/finish_registration", {
+                method: "POST",
+                body: fd
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                statusTxt.innerText = "Registration Complete! Redirecting…";
+                setTimeout(() => window.location.href = "/attendance", 1500);
+            } else {
+                statusTxt.innerText = "Error: " + data.message;
+            }
+            return;
+        }
+
+        statusTxt.innerText = steps[step];
+
+        const blob = await captureFrame();
+
+        const fd = new FormData();
+        fd.append("empid", empid);
+        fd.append("index", step);
+        fd.append("frame", blob);
+
+        await fetch("/api/upload_frame", {
+            method: "POST",
+            body: fd
+        });
+
+        step++;
+
+        setTimeout(captureStep, 1200);
+    }
+
+    captureBtn.addEventListener("click", () => {
+        captureBtn.disabled = true;
+        captureStep();
+    });
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Login — JSW Evacuation</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+  <!-- Top Header -->
+  <header class="header">
+    <div class="brand">
+      <img src="{{ url_for('static', filename='JSQ.png') }}" alt="JSW logo">
+      <h1></h1>
+    </div>
+
+    <div class="actions">
+      <button class="btn">Help</button>
+    </div>
+  </header>
+
+  <!-- Main Container (Left-aligned card) -->
+  <main class="container">
+    <div class="login-card" role="main" aria-labelledby="loginTitle">
+
+      <h2 id="loginTitle">Admin Sign In</h2>
+      <p class="small">Use your admin credentials to access the evacuation dashboard.</p>
+
+      <form method="POST" action="/login" autocomplete="off">
+        <input class="input" name="username" placeholder="Username" required>
+        <input class="input" name="password" type="password" placeholder="Password" required>
+        <button class="btn-primary" type="submit">Sign in</button>
+      </form>
+
+      <p class="small" style="margin-top:14px">Demo build • For internal review only</p>
+    </div>
+  </main>
+
+</body>
+</html>

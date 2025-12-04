@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Dashboard — JSW Evacuation</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="brand">
+    <img src="{{ url_for('static', filename='JSQ.png') }}" alt="JSW">
+    <h1>Evacuation Monitoring</h1>
+  </div>
+
+  <div class="actions">
+    <a class="btn" href="/register">Register</a>
+    <a class="btn" href="/attendance">Attendance</a>
+    <a class="btn" href="/evac_mode">Evacuation Mode</a>
+    <a class="btn" href="/logout">Logout</a>
+  </div>
+</header>
+
+
+<!-- MAIN CONTENT -->
+<main class="container">
+
+  <!-- Summary Cards Section (same as old UI) -->
+  <div class="grid" style="margin-bottom:18px">
+
+    <div class="card">
+      <h3>Total Employees</h3>
+      <p style="font-size:28px;margin:8px 0 4px">{{ total }}</p>
+      <p class="small">All registered employees</p>
+    </div>
+
+    <div class="card">
+      <h3>Today Present</h3>
+      <p style="font-size:28px;margin:8px 0 4px">{{ present }}</p>
+      <p class="small">Detected via attendance system</p>
+    </div>
+
+    <div class="card">
+      <h3>Missing</h3>
+      <p style="font-size:28px;margin:8px 0 4px">{{ missing }}</p>
+      <p class="small">Not marked present</p>
+    </div>
+
+  </div>
+
+
+  <!-- ACTION CARDS (New Feature Section) -->
+  <div class="grid">
+
+    <a href="/register" class="card dashboard-card">
+      <h3>🧑‍🏭 Employee Registration</h3>
+      <p class="small">Add new employee and auto-capture photos</p>
+    </a>
+
+    <a href="/attendance" class="card dashboard-card">
+      <h3>📅 Attendance</h3>
+      <p class="small">Real-time face recognition attendance</p>
+    </a>
+
+    <a href="/evac_mode" class="card dashboard-card">
+      <h3>🚨 Evacuation Mode</h3>
+      <p class="small">Emergency head counting system</p>
+    </a>
+
+  </div>
+
+
+  <!-- OLD TABLE SECTION (optional) -->
+  <div class="card" style="margin-top:22px;">
+    <h3>Latest Activity</h3>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Employee</th>
+          <th>Status</th>
+          <th>Mode</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% if logs %}
+          {% for row in logs %}
+          <tr>
+            <td>{{ row.time }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.status }}</td>
+            <td>{{ row.mode }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+        <tr><td colspan="4" class="small">No recent activity.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+</body>
+</html>

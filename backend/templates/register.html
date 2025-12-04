@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Register Employee — JSW</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        body {
+            background: #f4f7fb;
+            font-family: "Segoe UI", sans-serif;
+        }
+
+        .register-wrapper {
+            max-width: 480px;
+            margin: 40px auto;
+        }
+
+        .register-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .register-card h2 {
+            color: #0033A0;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        label {
+            font-weight: 600;
+            margin-top: 15px;
+            display: block;
+            color: #333;
+        }
+
+        .input,
+        select {
+            width: 100%;
+            padding: 12px;
+            margin-top: 6px;
+            border-radius: 8px;
+            border: 1px solid #d1d9e6;
+            background: #f9fbff;
+            font-size: 15px;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            margin-top: 25px;
+            font-size: 16px;
+            background: #0033A0;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: #00267d;
+        }
+
+        header.header {
+            background: #0033A0;
+            padding: 14px 20px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        header img {
+            height: 36px;
+        }
+
+        .actions .btn {
+            background: white;
+            color: #0033A0;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            margin-left: 10px;
+            font-weight: 600;
+        }
+
+        .actions .btn:hover {
+            background: #e8ecf5;
+        }
+    </style>
+</head>
+
+<body>
+
+<header class="header">
+    <div class="brand">
+        <img src="{{ url_for('static', filename='JSQ.png') }}" alt="JSW">
+        <h1 style="font-size: 20px;">Employee Registration</h1>
+    </div>
+
+    <div class="actions">
+        <a class="btn" href="/dashboard">Dashboard</a>
+        <a class="btn" href="/logout">Logout</a>
+    </div>
+</header>
+
+<main class="register-wrapper">
+
+    <div class="register-card">
+
+        <h2>Register New Employee</h2>
+
+        <form method="POST" action="/register">
+
+            <!-- Name -->
+            <label>Name</label>
+            <input class="input" type="text" name="name" required />
+
+            <!-- Department -->
+            <label>Department</label>
+            <select class="input" name="department" required onchange="generateEmpID()">
+                <option disabled selected>Select Department</option>
+
+                <optgroup label="Main Production Departments">
+                    <option>Iron Zone</option>
+                    <option>Sinter Plant</option>
+                    <option>Coke Oven Plant</option>
+                    <option>Blast Furnace</option>
+                    <option>Steel Melt Shop (SMS)</option>
+                    <option>Ladle Refining Furnace (LRF)</option>
+                    <option>Vacuum Degassing (VD)</option>
+                    <option>Continuous Casting Machine (CCM)</option>
+                    <option>Blooming Mill</option>
+                    <option>Bar & Rod Mill (BRM)</option>
+                    <option>Annealing Unit</option>
+                    <option>Bright Bar Unit</option>
+                </optgroup>
+
+                <optgroup label="Supporting / Utilities">
+                    <option>Air Separation Plant (ASP)</option>
+                    <option>Captive Power Plant (CPP)</option>
+                    <option>Gas Plant</option>
+                    <option>Water Treatment Plant</option>
+                    <option>Wastewater Treatment Plant</option>
+                    <option>Material Handling & Logistics</option>
+                </optgroup>
+
+                <optgroup label="Corporate / Functional">
+                    <option>Human Resources (HR)</option>
+                    <option>Finance & Accounts</option>
+                    <option>Safety, Health & Environment (SHE)</option>
+                    <option>Maintenance Department</option>
+                    <option>Production Planning & Control (PPC)</option>
+                    <option>Quality Assurance / Quality Control (QA/QC)</option>
+                    <option>Information Technology (IT)</option>
+                    <option>Administration</option>
+                </optgroup>
+            </select>
+
+            <!-- Employee ID -->
+            <label>Employee ID</label>
+            <input class="input" id="empid" name="empid" readonly placeholder="Auto-generated" />
+
+            <!-- Submit -->
+            <button class="btn-primary" type="submit">Next → Capture Photos</button>
+
+        </form>
+
+    </div>
+
+</main>
+
+<script>
+    function generateEmpID() {
+        const dept = document.querySelector("select[name='department']").value;
+        if (!dept) return;
+
+        fetch(`/api/get_next_id?department=${encodeURIComponent(dept)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.empid) {
+                    document.getElementById("empid").value = data.empid;
+                }
+            })
+            .catch(console.error);
+    }
+</script>
+
+</body>
+</html>

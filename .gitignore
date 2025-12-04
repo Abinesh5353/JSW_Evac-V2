@@ -1,0 +1,56 @@
+# -----------------------------------------
+# Python / Flask Project - Clean .gitignore
+# -----------------------------------------
+
+# Virtual environments
+venv/
+.venv/
+env/
+venv39/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables
+.env
+
+# SQLite DB (optional)
+*.sqlite3
+*.db
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Face recognition data
+face_encodings/
+faces/
+photos/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Compiled binaries
+*.dll
+*.so
+*.npy
+
+# Upload folders
+uploads/
+static/uploads/
+
+# Build folders
+dist/
+build/
